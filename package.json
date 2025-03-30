@@ -1,0 +1,26 @@
+{
+  "name": "simple-cloud-storage",
+  "version": "1.0.0",
+  "description": "A simplified Amazon S3 clone",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "app": "nodemon server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "express-validator": "^6.15.0",
+    "helmet": "^4.6.0",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^6.0.5",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.12"
+  }
+}
