@@ -1,4 +1,4 @@
-const FileAccess = require('../models/FileAccess');
+const FileAccess = require('../models/fileAccess');
 
 exports.trackFileAccess = async (req, res, next) => {
   // Store the original download method

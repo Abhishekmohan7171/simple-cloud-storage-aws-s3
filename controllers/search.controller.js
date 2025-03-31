@@ -1,5 +1,5 @@
-const File = require('../models/File');
-const Folder = require('../models/Folder');
+const File = require('../models/file');
+const Folder = require('../models/folder');
 
 // @desc    Search files and folders
 // @route   GET /api/search

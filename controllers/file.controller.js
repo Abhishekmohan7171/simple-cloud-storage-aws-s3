@@ -1,7 +1,7 @@
 const File = require('../models/file');
 const User = require('../models/user');
 const Folder = require('../models/folder');
-const { upload, calculateChecksum } = require('../utils/fileUpload');
+const { upload, calculateChecksum,handleDuplication } = require('../utils/fileUpload');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,78 +11,87 @@ const path = require('path');
 // @desc    Upload a file with deduplication
 // @route   POST /api/files/upload
 // @access  Private
+// @desc    Upload a file
+// @route   POST /api/files/upload
+// @access  Private
 exports.uploadFile = async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: 'Please upload a file' });
-      }
-  
-      const { folderId, accessLevel, tags, ...metadata } = req.body;
-      
-      // Check if folder exists and user has access
-      if (folderId) {
-        const folder = await Folder.findById(folderId);
-        if (!folder) {
-          return res.status(404).json({ message: 'Folder not found' });
-        }
-        
-        if (folder.owner.toString() !== req.user.id) {
-          return res.status(403).json({ message: 'Not authorized to upload to this folder' });
-        }
-      }
-      
-      // Calculate file checksum for deduplication
-      const checksum = await calculateChecksum(req.file.path);
-      
-      // Check for duplicates
-      const { isDuplicate, existingFile } = await handleDuplication(
-        checksum, 
-        req.user.id, 
-        folderId
-      );
-      
-      if (isDuplicate) {
-        // Delete the uploaded file as it's a duplicate
-        fs.unlinkSync(req.file.path);
-        
-        // Return the existing file info
-        return res.status(200).json({ 
-          success: true,
-          deduplicated: true,
-          message: 'File deduplicated - already exists in your storage',
-          data: existingFile
-        });
-      }
-      
-      // Create file object
-      const file = await File.create({
-        name: req.file.filename,
-        originalName: req.file.originalname,
-        encoding: req.file.encoding,
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-        path: req.file.path,
-        publicUrl: req.file.path.replace(process.env.FILE_UPLOAD_PATH, '/uploads'),
-        folder: folderId || null,
-        owner: req.user.id,
-        accessLevel: accessLevel || 'private',
-        tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-        metadata: metadata,
-        checksum
-      });
-      
-      // Update user's storage usage
-      await User.findByIdAndUpdate(
-        req.user.id,
-        { $inc: { storageUsed: req.file.size } }
-      );
-      
-      res.status(201).json({ success: true, data: file });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Server Error' });
+  try {
+    console.log('Upload request received:', req.file ? 'File included' : 'No file');
+    
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload a file' });
     }
-  };
+
+    const { folderId, accessLevel, tags, ...metadata } = req.body;
+    
+    // Check if folder exists and user has access
+    if (folderId) {
+      const folder = await Folder.findById(folderId);
+      if (!folder) {
+        return res.status(404).json({ message: 'Folder not found' });
+      }
+      
+      if (folder.owner.toString() !== req.user.id) {
+        return res.status(403).json({ message: 'Not authorized to upload to this folder' });
+      }
+    }
+    
+    // Calculate file checksum for deduplication
+    const checksum = await calculateChecksum(req.file.path);
+    
+    // Check for duplicates directly here instead of using handleDuplication
+    const duplicateFile = await File.findOne({
+      owner: req.user.id,
+      checksum: checksum,
+      folder: folderId || null
+    });
+    
+    if (duplicateFile) {
+      // Delete the uploaded file as it's a duplicate
+      fs.unlinkSync(req.file.path);
+      return res.status(200).json({ 
+        success: true,
+        deduplicated: true,
+        message: 'File deduplicated - already exists in your storage',
+        data: duplicateFile
+      });
+    }
+    
+    // Create file object
+    const file = await File.create({
+      name: req.file.filename,
+      originalName: req.file.originalname,
+      encoding: req.file.encoding,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path,
+      publicUrl: req.file.path.replace(process.env.FILE_UPLOAD_PATH || './uploads', '/uploads'),
+      folder: folderId || null,
+      owner: req.user.id,
+      accessLevel: accessLevel || 'private',
+      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      metadata: metadata || {},
+      checksum
+    });
+    
+    // Update user's storage usage
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $inc: { storageUsed: req.file.size } }
+    );
+    
+    console.log('File uploaded successfully:', file.originalName);
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'File uploaded successfully',
+      data: file 
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
 
 // @desc    Get all files for a user
 // @route   GET /api/files

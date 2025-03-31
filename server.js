@@ -29,7 +29,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/files', require('./routes/file.routes'));
 app.use('/api/analytics', require('./routes/analytics.routes'));
 app.use('/api/search', require('./routes/search.routes'));
-// app.use('/api/folders', require('./routes/folder.routes'));
+app.use('/api/folders', require('./routes/folder.routes'));
 
 const PORT = process.env.PORT || 5000;
 

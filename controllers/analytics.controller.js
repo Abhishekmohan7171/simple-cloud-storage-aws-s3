@@ -1,5 +1,6 @@
 const File = require('../models/file');
 const User = require('../models/user');
+const FileAccess = require('../models/fileAccess');
 
 // @desc    Get user storage usage statistics
 // @route   GET /api/analytics/storage
